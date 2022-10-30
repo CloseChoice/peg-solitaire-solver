@@ -55,12 +55,10 @@ impl SolitaireAction {
     }
 }
 
-
 #[derive(Clone, Copy, Eq, Hash, PartialEq, Debug)]
 pub struct SolitaireState {
     pub value: [[i32; 7]; 7],
 }
-
 
 pub type StateT = [[i32; 7]; 7];
 pub type ActionT = (Point, Jump);
@@ -69,6 +67,13 @@ pub type ActionT = (Point, Jump);
 impl SolitaireState {
     fn value(&self) -> [[i32; 7]; 7] {
         self.value
+    }
+}
+
+impl ToString for SolitaireState {
+    fn to_string(&self) -> String {
+        let a: String = self.value.iter().flat_map(|&s| s).filter(|&s| s!=-1).map(|s| s.to_string()).collect();
+        a
     }
 }
 
@@ -244,6 +249,26 @@ impl Solitaire {
         1.
     }
 
+    pub fn get_symmetry_reduced_actions(&self) -> Option<Vec<SolitaireAction>> {
+        let actions = self.actions();
+        match actions {
+            Some(actions) => {
+                let mut symmetry_reduced_actions: Vec<SolitaireAction> = Vec::new();
+                let mut seen_hashes: Vec<String> = Vec::new();
+                for action in actions {
+                    let (s, h) = self.simulate_action(&action.value());
+                    let hash = Solitaire::hash_state_as_string(&s, &h);
+                    if !seen_hashes.contains(&&hash) {
+                        symmetry_reduced_actions.push(action.clone());
+                        seen_hashes.push(hash.clone());
+                    }
+                }
+                Some(symmetry_reduced_actions)
+            },
+            None => None
+        }
+    }
+
     /// calculate the sum of distances between all points
     // pub fn hash(&self) -> (i8, f64, f64) {
     //     let length = self.holes.len();
@@ -339,6 +364,15 @@ impl Display for Solitaire {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use rand::{Rng};
+
+    #[test]
+    fn test_get_symmetry_reduced_actions() {
+        let mut env = Solitaire::new();
+        let result = env.get_symmetry_reduced_actions();
+        let expected = Some(vec![SolitaireAction { point: Point { x: 1, y: 3 }, action: Jump::Right }]);
+        assert_eq!(result, expected);
+    }
 
     #[test]
     fn test_taking_solitaire_actions() {

@@ -1,4 +1,4 @@
-use crate::peg_solitaire_environment::{StateT, ActionT};
+use crate::peg_solitaire_environment::{StateT, ActionT, Solitaire, SolitaireState};
 use std::collections::HashMap;
 
 #[derive(Debug)]
@@ -28,7 +28,7 @@ impl StateFunction {
         match self.qs.get(state_hash) {
             Some(value) => Some(value.1.clone()),
             None => None
-    }
+        }
     }
 
     pub fn get_state_counter(&self,
@@ -37,7 +37,6 @@ impl StateFunction {
             Some(value) => value.0.clone(),
             None => 0
         }
-
     }
 
     pub fn get_least_seen_state(&self, state_hashes: Vec<&String>) -> String {
@@ -57,11 +56,171 @@ impl StateFunction {
         }
         (*least_seen_state).to_string()
     }
+
+    pub fn update_reward_and_logging(&mut self, state: SolitaireState, visited_hashes: Vec<String>, reward: f64, iterations: &mut i128) {
+        let reward_entry = match visited_hashes[visited_hashes.len() - 1].as_str() {
+            "32_1565.69579_72.843619" => reward + 10.,
+            _ => reward,
+        };
+        for hash in visited_hashes {
+            self.update_state_value_with_fn(&hash, f64::max, reward_entry);
+        }
+        *iterations += 1;
+        // println!("EVERYTHING DONE: This is env\n{}", Solitaire::from_state(state));
+        if ((*iterations) % 100_000 == 0) {
+            println!("Reached {} iterations, visited {} positions", iterations, self.qs.len());
+        }
+    }
+
+    pub fn iterate_game(&mut self, state: SolitaireState, mut visited_hashes: Vec<String>, reward: f64, iterations: &mut i128) {
+        let env = Solitaire::from_state(state);
+        // println!("START OF FUNCTION: This is env\n{}", Solitaire::from_state(state.clone()));
+        // println!("START OF FUNCTION: These are hashes: {:?}", visited_hashes);
+        let current_hash = env.hash_as_str();
+        visited_hashes.push(current_hash.clone());
+        // weitere opt möglichkeit: check ob hash in der state function ist, wenn ja, füge allen vorherigen states
+        // den gleichen wert hinzu
+        if self.qs.get(&current_hash).is_some() {
+           let (num, reward) = self.qs.get(&current_hash).unwrap();
+           self.update_reward_and_logging(state, visited_hashes , *reward, iterations);
+        }
+        else {
+        let actions = env.get_symmetry_reduced_actions();
+            match actions {
+                Some(actions) => {
+                    // println!("We iterate over {} actions", actions.len());
+                    // wir iterieren hier über alle möglichkeiten ohne die Symmetrie zu beachten -> schreibe env.get_symmetry_reduced_actions()
+                    // vllt ist ein check auch noch hilfreich, denn wenn ein hash schon den max wert hat, wird dieser nicht mehr
+                    // weiter verbessert
+                    for action in actions {
+                        let (state, _) = env.simulate_action(&action.value());
+                        // println!("DURING ITERATION: This is env\n{}", Solitaire::from_state(state.clone()));
+                        self.iterate_game(state, visited_hashes.clone(), reward + 1., iterations);
+                    }
+                },
+                None => {
+                    self.update_reward_and_logging(state, visited_hashes , reward, iterations);
+                    // let reward_entry = match env.hash_as_str().as_str() {
+                    //     "32_1565.69579_72.843619" => reward + 10.,
+                    //     _ => reward,
+                    // };
+                    // for hash in visited_hashes {
+                    //     self.update_state_value_with_fn(&hash, f64::max, reward_entry);
+                    // }
+                    // *iterations += 1;
+                    // println!("EVERYTHING DONE: This is env\n{}", Solitaire::from_state(state));
+                    // if ((*iterations) % 100_000 == 0) {
+                    //     println!("Reached {} iterations, visited {} positions", iterations, self.qs.len());
+                    // }
+                }
+            }
+        }
+    }
 }
 
 
 mod tests {
     use super::*;
+    use crate::peg_solitaire_environment::SolitaireState;
+
+
+    #[test]
+    fn test_iterate_game_complete() {
+        let state = SolitaireState {
+            value: [
+                [-1, -1, 1, 1, 1, -1, -1],
+                [-1, -1, 1, 1, 1, -1, -1],
+                [ 1,  1, 1, 1, 1,  1,  1],
+                [ 1,  1, 1, 0, 1,  1,  1],
+                [ 1,  1, 1, 1, 1,  1,  1],
+                [-1, -1, 1, 1, 1, -1, -1],
+                [-1, -1, 1, 1, 1, -1, -1],
+            ],
+        };
+        let env = Solitaire::from_state(state.clone());
+        let mut state_function = StateFunction::new();
+        state_function.iterate_game(state, vec![], 0., &mut 0);
+        
+        println!("other: {:?}", state_function.qs.get(&env.hash_as_str()));
+        println!("LEN OF state function: {}", state_function.qs.len());
+        for (h, s) in state_function.qs.iter() {
+            println!("Hash {}\tvisits {}\tvalue {}", h, s.0, s.1);
+        }
+        println!("other: {:?}", state_function.qs);
+    }
+
+    #[test]
+    fn test_iterate_game_endgame2() {
+        let state = SolitaireState {
+            value: [
+                [-1, -1, 0, 0, 0, -1, -1],
+                [-1, -1, 0, 0, 0, -1, -1],
+                [ 0,  0, 0, 0, 0,  0,  0],
+                [ 0,  0, 0, 0, 0,  1,  0],
+                [ 0,  1, 1, 0, 1,  0,  1],
+                [-1, -1, 0, 0, 1, -1, -1],
+                [-1, -1, 0, 0, 0, -1, -1],
+            ],
+        };
+        let env = Solitaire::from_state(state.clone());
+        let mut state_function = StateFunction::new();
+        state_function.iterate_game(state, vec![], 26., &mut 0);
+        
+        println!("other: {:?}", state_function.qs.get(&env.hash_as_str()));
+        println!("LEN OF state function: {}", state_function.qs.len());
+        for (h, s) in state_function.qs.iter() {
+            println!("Hash {}\tvisits {}\tvalue {}", h, s.0, s.1);
+        }
+        println!("other: {:?}", state_function.qs);
+    }
+
+    #[test]
+    fn test_iterate_game_middlegame() {
+        let state = SolitaireState {
+            value: [
+                [-1, -1, 1, 0, 0, -1, -1],
+                [-1, -1, 1, 0, 0, -1, -1],
+                [ 0,  0, 0, 0, 0,  0,  0],
+                [ 0,  0, 0, 1, 1,  1,  0],
+                [ 0,  1, 0, 0, 1,  0,  1],
+                [-1, -1, 0, 0, 1, -1, -1],
+                [-1, -1, 0, 0, 0, -1, -1],
+            ],
+        };
+        let env = Solitaire::from_state(state.clone());
+        let mut state_function = StateFunction::new();
+        state_function.iterate_game(state, vec![], 25., &mut 0);
+        
+        println!("other: {:?}", state_function.qs.get(&env.hash_as_str()));
+        println!("other: {:?}", state_function.qs);
+    }
+
+    #[test]
+    fn test_iterate_game_endgame() {
+        let state = SolitaireState {
+            value: [
+                [-1, -1, 0, 0, 0, -1, -1],
+                [-1, -1, 1, 0, 0, -1, -1],
+                [ 0,  0, 1, 0, 0,  0,  0],
+                [ 0,  1, 0, 0, 0,  0,  0],
+                [ 0,  0, 0, 0, 0,  0,  0],
+                [-1, -1, 0, 0, 0, -1, -1],
+                [-1, -1, 0, 0, 0, -1, -1],
+            ],
+        };
+        let mut state_function = StateFunction::new();
+        state_function.iterate_game(state, vec![], 0., &mut 0);
+        
+        let result = HashMap::from([
+            (String::from("32_1523.795903_69.843619"), (1, 2.0)),
+            (String::from("32_1565.69579_72.843619"), (1, 2.0)),
+            (String::from("31_1430.068762_67.681342"), (1, 1.0)),
+        ]);
+        // {"32_1523.795903_69.843619": (1, 2.0), "32_1565.69579_72.843619": (1, 2.0), "31_1430.068762_67.681342": (1, 1.0)}
+        // println!("other: {:?}", state_function.qs);
+        // assert_eq!(result, state_function.qs);
+
+    }
 
     #[test]
     fn test_insert_value() {
