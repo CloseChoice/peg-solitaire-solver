@@ -52,22 +52,26 @@ pub fn brute_force_solving(
         let mut env = Solitaire::new();
         let mut reward = 0.;
         let mut state_vec = Vec::new();
+        let mut visited_states = Vec::new();
 
         let mut action = simulate_and_get_least_played_action(&mut s, &env);
         let hash = env.hash_as_str();
         state_vec.push(hash);
+        visited_states.push(env.state.to_string());
         while !env.finished() {
             reward += env.take_action(&action.value());
             let hash = env.hash_as_str();
             state_vec.push(hash);
+            visited_states.push(env.state.to_string());
             // println!("These are the actions {:?}", env.actions());
             // println!("Is the game finished {}", env.finished());
             if env.finished() {
                 if env.holes.len() == 32 && env.state.value[3][3] == 1 {
                     reward += 10.;
                 }
-                for hash in state_vec.iter() {
-                    s.update_state_value_with_fn(&hash, f64::max, reward);
+
+                for (hash, visited_state) in state_vec.iter().zip(visited_states.iter()) {
+                    s.update_state_value_with_fn(hash.clone(), visited_state.clone(), f64::max, reward);
                 }
                 break;
             }

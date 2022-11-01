@@ -289,7 +289,7 @@ impl Solitaire {
     //     let a = 0.5 * sum as f64;
     //     (length as i8, a.abs(), min_distance)
     // }
-    pub fn hash(&self) -> (i8, f64, f64) {
+    pub fn hash(&self) -> (i8, f64, f64, f64, i32) {
        Solitaire::hash_state(&self.state, &self.holes)
     }
 
@@ -297,28 +297,66 @@ impl Solitaire {
         Solitaire::hash_state_as_string(&self.state, &self.holes)
     }
 
-    pub fn hash_state(state: &SolitaireState, holes: &Vec<Point>) -> (i8, f64, f64) {
-        let length = holes.len();
+    pub fn calculate_distances(vec: &Vec<Point>) -> (i8, f64, f64) {
+        let length = vec.len();
         let mut sum : f64 = 0.;
-        let holes = holes.clone();
+        let vec = vec.clone();
         let mut sum_mid: f64 = 0.;
-        for (idx, h) in holes[..length-1].iter().enumerate() {
-            for h_next in holes[idx..].iter() {
+        for (idx, h) in vec[..length-1].iter().enumerate() {
+            for h_next in vec[idx..].iter() {
                 let dist = (((h.x - h_next.x).pow(2) + (h.y - h_next.y).pow(2)) as f64).sqrt();
                 sum += dist;
             }
             sum_mid += (( (h.x - 3).pow(2) + (h.y - 3).pow(2)) as f64).sqrt();
         }
         // add last hole to sum_mid
-        let lh = holes[length - 1];
+        let lh = vec[length - 1];
         sum_mid += (( (lh.x - 3).pow(2) + (lh.y - 3).pow(2)) as f64).sqrt();
-        (length as i8, (sum * 1_000_000.).round() / 1_000_000. , (sum_mid * 1_000_000.).round() / 1_000_000.)
+ 
+        (length as i8, (sum * 1_000_000.).round() / 1_000_000., (sum_mid * 1_000_000.).round() / 1_000_000.)
+    }
+
+    pub fn hash_state(state: &SolitaireState, holes: &Vec<Point>) -> (i8, f64, f64, f64, i32) {
+        //let length = holes.len();
+        //let mut sum : f64 = 0.;
+        //let holes = holes.clone();
+        //let mut sum_mid: f64 = 0.;
+        //for (idx, h) in holes[..length-1].iter().enumerate() {
+        //    for h_next in holes[idx..].iter() {
+        //        let dist = (((h.x - h_next.x).pow(2) + (h.y - h_next.y).pow(2)) as f64).sqrt();
+        //        sum += dist;
+        //    }
+        //    sum_mid += (( (h.x - 3).pow(2) + (h.y - 3).pow(2)) as f64).sqrt();
+        //}
+        //// add last hole to sum_mid
+        //let lh = holes[length - 1];
+        //sum_mid += (( (lh.x - 3).pow(2) + (lh.y - 3).pow(2)) as f64).sqrt();
+        let (l, hd, hm) = Solitaire::calculate_distances(holes);
+        let pegs = Solitaire::get_pegs_from_state(state);
+        let (_, pd, _) = Solitaire::calculate_distances(&pegs);
+        (l, 
+         (hd * 1_000_000.).round() / 1_000_000. , 
+         (hm * 1_000_000.).round() / 1_000_000.,
+         (pd * 1_000_000.).round() / 1_000_000.,
+         Solitaire::hash_constant_groups(state))
     }
 
     pub fn hash_state_as_string(state: &SolitaireState, holes: &Vec<Point>) -> String {
-        let (num_holes, sum_of_dist, sum_of_dist_to_origin) = Solitaire::hash_state(state, holes);
-        let s = format!("{}_{}_{}", num_holes, sum_of_dist, sum_of_dist_to_origin);
+        let (num_holes, sum_of_dist, sum_of_dist_to_origin, pegs_distances, const_group_hash) = Solitaire::hash_state(state, holes);
+        let s = format!("{}_{}_{}_{}_{}", num_holes, sum_of_dist, sum_of_dist_to_origin, pegs_distances, const_group_hash);
         s
+    }
+
+    pub fn hash_constant_groups(state: &SolitaireState) -> i32 {
+        let val = state.value();
+        let mid = val[3][3];
+        let group2 = val[3][2] + val[3][4] + val[2][3] + val[4][3];
+        let group3 = val[2][2] + val[2][4] + val[4][2] + val[4][4];
+        let group4 = val[3][1] + val[3][5] + val[1][3] + val[5][3];
+        let group5 = val[1][2] + val[1][4] + val[2][1] + val[2][5] + val [4][1] + val[4][5] + val[5][2] + val[5][4];
+        let group6 = val[0][2] + val[0][4] + val[2][0] + val[2][6] + val [4][0] + val[4][6] + val[6][2] + val[6][4];
+        let group7 = val[0][3] + val[3][0] + val[3][6] + val[6][3];
+        return 1_000_000 * mid + 100_000 * group2 + 10_000 * group3 + 1_000 * group4 + 100 * group5 + 10 * group6 + 1 * group7
     }
 
 
@@ -332,6 +370,19 @@ impl Solitaire {
             }
         }
         holes
+    }
+
+
+    pub fn get_pegs_from_state(state: &SolitaireState) -> Vec<Point> {
+        let mut pegs = Vec::new();
+        for (ridx, row) in state.value.iter().enumerate() {
+            for (cidx, value) in row.iter().enumerate() {
+                if *value == 1 {
+                    pegs.push(Point{ x: cidx as i32, y: ridx as i32});
+                }
+            }
+        }
+        pegs
     }
 
     pub fn from_state(state: SolitaireState) -> Self {
@@ -365,6 +416,140 @@ impl Display for Solitaire {
 mod tests {
     use super::*;
     use rand::{Rng};
+
+    #[test]
+    fn test_get_hash_of_constant_groups() {
+        let state = SolitaireState {
+            value: [
+                [-1, -1, 0, 1, 0, -1, -1],
+                [-1, -1, 1, 1, 0, -1, -1],
+                [ 0,  0, 1, 1, 0,  0,  0],
+                [ 0,  0, 0, 1, 1,  0,  0],
+                [ 0,  0, 1, 0, 0,  0,  0],
+                [-1, -1, 1, 0, 0, -1, -1],
+                [-1, -1, 0, 0, 0, -1, -1],
+            ],
+        };
+        let hash = Solitaire::hash_constant_groups(&state);
+        assert_eq!(hash, 1_221_201);
+
+        // tests to identify the groups
+
+        let state = SolitaireState {
+            value: [
+                [-1, -1, 1, 1, 1, -1, -1],
+                [-1, -1, 1, 1, 1, -1, -1],
+                [ 1,  1, 1, 1, 1,  1,  1],
+                [ 1,  1, 1, 1, 1,  1,  1],
+                [ 1,  1, 1, 1, 1,  1,  1],
+                [-1, -1, 1, 1, 1, -1, -1],
+                [-1, -1, 1, 1, 1, -1, -1],
+            ],
+        };
+        let hash = Solitaire::hash_constant_groups(&state);
+        assert_eq!(hash, 1_444_884);
+
+
+        let state = SolitaireState {
+            value: [
+                [-1, -1, 1, 1, 1, -1, -1],
+                [-1, -1, 1, 1, 1, -1, -1],
+                [ 1,  1, 1, 1, 1,  1,  1],
+                [ 1,  1, 1, 0, 1,  1,  1],
+                [ 1,  1, 1, 1, 1,  1,  1],
+                [-1, -1, 1, 1, 1, -1, -1],
+                [-1, -1, 1, 1, 1, -1, -1],
+            ],
+        };
+        let hash = Solitaire::hash_constant_groups(&state);
+        assert_eq!(hash, 444_884);
+
+
+        let state = SolitaireState {
+            value: [
+                [-1, -1, 1, 1, 1, -1, -1],
+                [-1, -1, 1, 1, 1, -1, -1],
+                [ 1,  1, 1, 0, 1,  1,  1],
+                [ 1,  1, 0, 1, 0,  1,  1],
+                [ 1,  1, 1, 0, 1,  1,  1],
+                [-1, -1, 1, 1, 1, -1, -1],
+                [-1, -1, 1, 1, 1, -1, -1],
+            ],
+        };
+        let hash = Solitaire::hash_constant_groups(&state);
+        assert_eq!(hash, 1_044_884);
+
+        let state = SolitaireState {
+            value: [
+                [-1, -1, 1, 1, 1, -1, -1],
+                [-1, -1, 1, 1, 1, -1, -1],
+                [ 1,  1, 0, 1, 0,  1,  1],
+                [ 1,  1, 1, 1, 1,  1,  1],
+                [ 1,  1, 0, 1, 0,  1,  1],
+                [-1, -1, 1, 1, 1, -1, -1],
+                [-1, -1, 1, 1, 1, -1, -1],
+            ],
+        };
+        let hash = Solitaire::hash_constant_groups(&state);
+        assert_eq!(hash, 1_404_884);
+
+        let state = SolitaireState {
+            value: [
+                [-1, -1, 1, 1, 1, -1, -1],
+                [-1, -1, 1, 0, 1, -1, -1],
+                [ 1,  1, 1, 1, 1,  1,  1],
+                [ 1,  0, 1, 1, 1,  0,  1],
+                [ 1,  1, 1, 1, 1,  1,  1],
+                [-1, -1, 1, 0, 1, -1, -1],
+                [-1, -1, 1, 1, 1, -1, -1],
+            ],
+        };
+        let hash = Solitaire::hash_constant_groups(&state);
+        assert_eq!(hash, 1_440_884);
+
+        let state = SolitaireState {
+            value: [
+                [-1, -1, 1, 1, 1, -1, -1],
+                [-1, -1, 0, 1, 0, -1, -1],
+                [ 1,  0, 1, 1, 1,  0,  1],
+                [ 1,  1, 1, 1, 1,  1,  1],
+                [ 1,  0, 1, 1, 1,  0,  1],
+                [-1, -1, 0, 1, 0, -1, -1],
+                [-1, -1, 1, 1, 1, -1, -1],
+            ],
+        };
+        let hash = Solitaire::hash_constant_groups(&state);
+        assert_eq!(hash, 1_444_084);
+
+        let state = SolitaireState {
+            value: [
+                [-1, -1, 0, 1, 0, -1, -1],
+                [-1, -1, 1, 1, 1, -1, -1],
+                [ 0,  1, 1, 1, 1,  1,  0],
+                [ 1,  1, 1, 1, 1,  1,  1],
+                [ 0,  1, 1, 1, 1,  1,  0],
+                [-1, -1, 1, 1, 1, -1, -1],
+                [-1, -1, 0, 1, 0, -1, -1],
+            ],
+        };
+        let hash = Solitaire::hash_constant_groups(&state);
+        assert_eq!(hash, 1_444_804);
+
+
+        let state = SolitaireState {
+            value: [
+                [-1, -1, 1, 0, 1, -1, -1],
+                [-1, -1, 1, 1, 1, -1, -1],
+                [ 1,  1, 1, 1, 1,  1,  1],
+                [ 0,  1, 1, 1, 1,  1,  0],
+                [ 1,  1, 1, 1, 1,  1,  1],
+                [-1, -1, 1, 1, 1, -1, -1],
+                [-1, -1, 1, 0, 1, -1, -1],
+            ],
+        };
+        let hash = Solitaire::hash_constant_groups(&state);
+        assert_eq!(hash, 1_444_880);
+    }
 
     #[test]
     fn test_get_symmetry_reduced_actions() {
@@ -560,20 +745,22 @@ mod tests {
             ],
         };
         let mut env = Solitaire::from_state(state);
-        let (num_holes, sum_of_dist, sum_of_dist_to_origin) = env.hash();
+        let (num_holes, sum_of_dist, sum_of_dist_to_origin, pegs_dist, const_group_hash) = env.hash();
         assert_eq!(num_holes, 3);
         assert_eq!(sum_of_dist, 4.650282);
         assert_eq!(sum_of_dist_to_origin, 5.650282);
+        assert_eq!(const_group_hash, 1_433_784);
 
         let arr: Vec<fn(&SolitaireState) -> SolitaireState> = vec![_rotate_90, _rotate_180, _rotate_270, _mirror, _mirror_90, _mirror_180, _mirror_270];
 
         for f in &arr {
             let env = Solitaire::from_state(f(&state));
             println!("This is the env\n{}", env);
-            let (num_holes, sum_of_dist, sum_of_dist_to_origin) = env.hash();
+            let (num_holes, sum_of_dist, sum_of_dist_to_origin, pegs_dist, const_group_hash) = env.hash();
             assert_eq!(num_holes, 3);
             assert_eq!(sum_of_dist, 4.650282);
             assert_eq!(sum_of_dist_to_origin, 5.650282);
+            assert_eq!(const_group_hash, 1_433_784);
         }
     }
 
@@ -591,13 +778,13 @@ mod tests {
          ] 
         };
         let env = Solitaire::from_state(state);
-        let (num_holes, area, min_dist) = env.hash();
+        let (num_holes, area, min_dist, pegs_dist, const_group_hash) = env.hash();
         println!("These are the holes {:?}", env.holes);
         println!("This is env\n{}\n\nAnd the num holes {}, area {}, min_dist {}", env, num_holes, area, min_dist);
 
         let env = Solitaire::from_state(_rotate_90(&state));
         println!("These are the holes {:?}", env.holes);
-        let (new_num_holes, new_area, new_min_dist) = env.hash();
+        let (new_num_holes, new_area, new_min_dist, pegs_dist, const_group_hash) = env.hash();
         println!("This is env2\n{}\n\nAnd the num holes {}, area {}, min_dist {}", env, new_num_holes, new_area, new_min_dist);
 
         assert_eq!(num_holes, new_num_holes);
@@ -621,7 +808,7 @@ mod tests {
 
         let env = Solitaire::from_state(state);
         let result = Solitaire::hash_state_as_string(&env.state, &env.holes);
-        assert_eq!(String::from("3_4.650282_5.650282"), result);
+        assert_eq!(String::from("3_4.650282_5.650282_1370.759762_1433784"), result);
 
     }
 
@@ -644,13 +831,15 @@ mod tests {
             };
             let env = Solitaire::from_state(state);
 
-            let (num_holes, area, min_dist) = env.hash();
+            let (num_holes, area, min_dist, pegs_dist, const_group_hash) = env.hash();
             for f in &arr {
                 let env = Solitaire::from_state(f(&state));
-                let (new_num_holes, new_area, new_min_dist) = env.hash();
+                let (new_num_holes, new_area, new_min_dist, new_pegs_dist, new_const_group_hash) = env.hash();
                 assert_eq!(num_holes, new_num_holes);
                 assert_eq!(area, new_area);
                 assert_eq!(min_dist, new_min_dist);
+                assert_eq!(pegs_dist, new_pegs_dist);
+                assert_eq!(const_group_hash, new_const_group_hash);
             }
         }
     }

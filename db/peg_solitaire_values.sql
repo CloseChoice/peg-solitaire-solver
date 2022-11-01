@@ -5,6 +5,7 @@ CREATE TABLE `peg_solitaire_values` (
   `value` int DEFAULT NULL,
   `holes` int NOT NULL,
   PRIMARY KEY (`hash`,`holes`)
+  )
 PARTITION BY LIST(holes) (
     PARTITION pHoles_1 VALUES IN (1,2,3,4,5,6,7,8,9,10,11,12,13),
     PARTITION pHoles_2 VALUES IN (14,15),
