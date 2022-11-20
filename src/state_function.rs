@@ -19,6 +19,9 @@ impl StateFunction {
                               value: f64
                             ) where F: Fn(f64, f64) -> f64
         {
+        // 0-th value: occurences
+        // 1st value: reward
+        // 2nd value: position string
         let default = (0, 0., String::from(""));
         let old_value = self.qs.get(&state_hash).unwrap_or(&default);
         let new_value = fun(old_value.1, value);
@@ -27,7 +30,7 @@ impl StateFunction {
         }
         // if there is no improvement, then only increment the counter
         else {
-            self.qs.insert(state_hash, (old_value.0 + 1, old_value.1, old_value.2));
+            self.qs.insert(state_hash, (old_value.0 + 1, old_value.1, old_value.2.clone()));
         }
     }
 
@@ -72,9 +75,11 @@ impl StateFunction {
                                      reward: f64, 
                                      iterations: &mut i128) {
         let reward_entry = match visited_hashes[visited_hashes.len() - 1].as_str() {
+            // todo: this does not work anymore!
             "32_1565.69579_72.843619" => reward + 10.,
             _ => reward,
         };
+        assert_eq!(visited_hashes.len(), visited_states.len());
         for (hash, state_string) in visited_hashes.iter().zip(visited_states.iter()) {
             self.update_state_value_with_fn(hash.clone(), state_string.clone(), f64::max, reward_entry);
         }
@@ -117,7 +122,7 @@ impl StateFunction {
                     // vllt ist ein check auch noch hilfreich, denn wenn ein hash schon den max wert hat, wird dieser nicht mehr
                     // weiter verbessert
                     for action in actions {
-                        let (state, _) = env.simulate_action(&action.value());
+                        let (state, _, _) = env.simulate_action(&action.value());
                         // println!("DURING ITERATION: This is env\n{}", Solitaire::from_state(state.clone()));
                         self.iterate_game(state, visited_hashes.clone(), visited_states.clone(), reward + 1., iterations);
                     }

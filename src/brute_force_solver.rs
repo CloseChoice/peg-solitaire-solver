@@ -6,8 +6,8 @@ pub fn simulate_and_get_least_played_action(s: &mut StateFunction, env: &Solitai
     let mut state_counter = i32::MAX;
     let mut prefered_action = env.actions().unwrap()[0]; // just initialize this with first action
     for action in env.actions().unwrap().iter() {
-        let (state, holes) = env.simulate_action(&action.value());
-        let hash = Solitaire::hash_state_as_string(&state, &holes);
+        let (state, holes, pegs) = env.simulate_action(&action.value());
+        let hash = Solitaire::hash_state_as_string(&state, &holes, &pegs);
         let c = s.get_state_counter(&hash);
         if c == 0 {
             return *action;
