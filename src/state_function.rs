@@ -94,9 +94,6 @@ impl StateFunction {
     }
 
     pub fn iterate_game(&mut self, state: SolitaireState, mut visited_hashes: Vec<String>, mut visited_states: Vec<String>, reward: f64, iterations: &mut i128) {
-        if iterations >= &mut 100_000 {
-            return
-        };
         let env = Solitaire::from_state(state);
         // println!("START OF FUNCTION: This is env\n{}", Solitaire::from_state(state.clone()));
         // println!("START OF FUNCTION: These are hashes: {:?}", visited_hashes);
