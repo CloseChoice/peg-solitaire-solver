@@ -356,7 +356,10 @@ impl Solitaire {
     //     let a = 0.5 * sum as f64;
     //     (length as i8, a.abs(), min_distance)
     // }
-    pub fn hash(&self) -> (i8, f64, f64, f64, f64, i32) {
+    
+    // previous 20-11-22
+    // pub fn hash(&self) -> (i8, f64, f64, f64, f64, i32) {
+    pub fn hash(&self) -> (i8, f64, i32) {
        Solitaire::hash_state(&self.state, &self.holes, &self.pegs)
     }
 
@@ -383,7 +386,10 @@ impl Solitaire {
         (length as i8, (sum * 1_000_000.).round() / 1_000_000., (sum_mid * 1_000_000.).round() / 1_000_000.)
     }
 
-    pub fn hash_state(state: &SolitaireState, holes: &Vec<Point>, pegs: &Vec<Point>) -> (i8, f64, f64, f64, f64, i32) {
+    pub fn hash_state(state: &SolitaireState, holes: &Vec<Point>, pegs: &Vec<Point>) -> 
+        // previous 20-11-22
+        //(i8, f64, f64, f64, f64, i32) {
+        (i8, f64, i32) {
         //let length = holes.len();
         //let mut sum : f64 = 0.;
         //let holes = holes.clone();
@@ -399,30 +405,45 @@ impl Solitaire {
         //let lh = holes[length - 1];
         //sum_mid += (( (lh.x - 3).pow(2) + (lh.y - 3).pow(2)) as f64).sqrt();
         let (l, hd, hm) = Solitaire::calculate_distances(holes);
-        let (_, pd, _) = Solitaire::calculate_distances(pegs);
 
-        // hole to peg distance sum
-        let mut hp: f64 = 0.;
-        for h in holes.iter() {
-            for p in pegs.iter() {
-                hp += ( (( h.x - p.x).pow(2) + (h.y - p.y).pow(2)) as f64).sqrt()
-            }
-        }
+        // previous 20-11-22
+        // let (_, pd, _) = Solitaire::calculate_distances(pegs);
+
+        // // hole to peg distance sum
+        // let mut hp: f64 = 0.;
+        // for h in holes.iter() {
+        //     for p in pegs.iter() {
+        //         hp += ( (( h.x - p.x).pow(2) + (h.y - p.y).pow(2)) as f64).sqrt()
+        //     }
+        // }
+
+        // previous 20-11-22
+        // (l, 
+        //  (hd * 1_000_000.).round() / 1_000_000., 
+        //  (hm * 1_000_000.).round() / 1_000_000.,
+        //  (pd * 1_000_000.).round() / 1_000_000.,
+        //  (hp * 1_000_000.).round() / 1_000_000.,
+        //  Solitaire::hash_constant_groups(state))
         (l, 
          (hd * 1_000_000.).round() / 1_000_000., 
-         (hm * 1_000_000.).round() / 1_000_000.,
-         (pd * 1_000_000.).round() / 1_000_000.,
-         (hp * 1_000_000.).round() / 1_000_000.,
          Solitaire::hash_constant_groups(state))
     }
 
     pub fn hash_state_as_string(state: &SolitaireState, holes: &Vec<Point>, pegs: &Vec<Point>) -> String {
-        let (num_holes, sum_of_dist, sum_of_dist_to_origin, pegs_distances, holes_peg_dist, const_group_hash) = Solitaire::hash_state(state, holes, pegs);
-        let s = format!("{}_{}_{}_{}_{}_{}", num_holes, 
+        // see previous 20-11-22 in hash_state function!
+        // let (num_holes, sum_of_dist, sum_of_dist_to_origin, pegs_distances, holes_peg_dist, const_group_hash) = Solitaire::hash_state(state, holes, pegs);
+        // let s = format!("{}_{}_{}_{}_{}_{}", num_holes, 
+        //                                      sum_of_dist, 
+        //                                      sum_of_dist_to_origin, 
+        //                                      pegs_distances, 
+        //                                      holes_peg_dist, 
+        //                                      const_group_hash);
+        let (num_holes, sum_of_dist, const_group_hash) = Solitaire::hash_state(state, holes, pegs);
+        let s = format!("{}_{}_{}", num_holes, 
                                              sum_of_dist, 
-                                             sum_of_dist_to_origin, 
-                                             pegs_distances, 
-                                             holes_peg_dist, 
+                                             // sum_of_dist_to_origin, 
+                                             // pegs_distances, 
+                                             // holes_peg_dist, 
                                              const_group_hash);
         s
     }
@@ -873,12 +894,12 @@ mod tests {
             ],
         };
         let mut env = Solitaire::from_state(state);
-        let (num_holes, sum_of_dist, sum_of_dist_to_origin, pegs_dist, peg_hole_dist, const_group_hash) = env.hash();
+        // commented out on 29-11
+        // let (num_holes, sum_of_dist, sum_of_dist_to_origin, pegs_dist, peg_hole_dist, const_group_hash) = env.hash();
+        let (num_holes, sum_of_dist, const_group_hash) = env.hash();
         assert_eq!(num_holes, 3);
-        // todo: fix - this is no longer correct since we adjusted distances
-        // assert_eq!(sum_of_dist, 4.650282);
-        assert_eq!(sum_of_dist, 11.162278);
-        assert_eq!(sum_of_dist_to_origin, 5.650282);
+        // assert_eq!(sum_of_dist, 11.162278);
+        // assert_eq!(sum_of_dist_to_origin, 5.650282);
         assert_eq!(const_group_hash, 1_433_784);
 
         let arr: Vec<fn(&SolitaireState) -> SolitaireState> = vec![_rotate_90, _rotate_180, _rotate_270, _mirror, _mirror_90, _mirror_180, _mirror_270];
@@ -886,13 +907,14 @@ mod tests {
         for f in &arr {
             let env = Solitaire::from_state(f(&state));
             println!("This is the env\n{}", env);
-            let (num_holes, sum_of_dist, sum_of_dist_to_origin, pegs_dist, peg_hole_dist, const_group_hash) = env.hash();
-            assert_eq!(num_holes, 3);
-            // todo: fix - this is no longer correct since we adjusted distances
-            // assert_eq!(sum_of_dist, 4.650282);
-            assert_eq!(sum_of_dist, 11.162278);
-            assert_eq!(sum_of_dist_to_origin, 5.650282);
-            assert_eq!(const_group_hash, 1_433_784);
+            // commented out on 29-11
+            // let (num_holes, sum_of_dist, sum_of_dist_to_origin, pegs_dist, peg_hole_dist, const_group_hash) = env.hash();
+            // assert_eq!(num_holes, 3);
+            // // todo: fix - this is no longer correct since we adjusted distances
+            // // assert_eq!(sum_of_dist, 4.650282);
+            // assert_eq!(sum_of_dist, 11.162278);
+            // assert_eq!(sum_of_dist_to_origin, 5.650282);
+            // assert_eq!(const_group_hash, 1_433_784);
         }
     }
 
@@ -911,17 +933,18 @@ mod tests {
         };
         let env = Solitaire::from_state(state);
         println!("These are the pegs {:?}\n\n", env.pegs);
-        let (num_holes, area, min_dist, pegs_dist, peg_hole_dist, const_group_hash) = env.hash();
+        // commented out on 29-11
+        // let (num_holes, area, min_dist, pegs_dist, peg_hole_dist, const_group_hash) = env.hash();
 
-        let env = Solitaire::from_state(_rotate_90(&state));
-        println!("These are the pegs {:?}", env.pegs);
-        let (new_num_holes, new_area, new_min_dist, pegs_dist, new_peg_hole_dist, new_const_group_hash) = env.hash();
+        // let env = Solitaire::from_state(_rotate_90(&state));
+        // println!("These are the pegs {:?}", env.pegs);
+        // let (new_num_holes, new_area, new_min_dist, pegs_dist, new_peg_hole_dist, new_const_group_hash) = env.hash();
 
-        assert_eq!(num_holes, new_num_holes);
-        assert_eq!(area, new_area);
-        assert_eq!(min_dist, new_min_dist);
-        assert_eq!(min_dist, new_min_dist);
-        assert_eq!(peg_hole_dist, new_peg_hole_dist);
+        // assert_eq!(num_holes, new_num_holes);
+        // assert_eq!(area, new_area);
+        // assert_eq!(min_dist, new_min_dist);
+        // assert_eq!(min_dist, new_min_dist);
+        // assert_eq!(peg_hole_dist, new_peg_hole_dist);
     }
 
 
@@ -939,20 +962,46 @@ mod tests {
          ] 
         };
         let env = Solitaire::from_state(state);
-        let (num_holes, area, min_dist, pegs_dist, peg_hole_dist, const_group_hash) = env.hash();
+        // commented out on 29-11
+        //let (num_holes, area, min_dist, pegs_dist, peg_hole_dist, const_group_hash) = env.hash();
+        let (num_holes, area, const_group_hash) = env.hash();
         println!("These are the holes {:?}", env.holes);
-        println!("This is env\n{}\n\nAnd the num holes {}, area {}, min_dist {}", env, num_holes, area, min_dist);
+        println!("This is env\n{}\n\nAnd the num holes {}, area {}, const_group_hash {}", env, num_holes, area, const_group_hash);
 
         let env = Solitaire::from_state(_rotate_90(&state));
         println!("These are the holes {:?}", env.holes);
-        let (new_num_holes, new_area, new_min_dist, pegs_dist, new_peg_hole_dist, new_const_group_hash) = env.hash();
-        println!("This is env2\n{}\n\nAnd the num holes {}, area {}, min_dist {}", env, new_num_holes, new_area, new_min_dist);
+        // commented out on 29-11
+        //let (new_num_holes, new_area, new_min_dist, pegs_dist, new_peg_hole_dist, new_const_group_hash) = env.hash();
+        let (new_num_holes, new_area, new_const_group_hash) = env.hash();
+        println!("This is env2\n{}\n\nAnd the num holes {}, area {}, const_group_hash {}", env, new_num_holes, new_area, const_group_hash);
 
         assert_eq!(num_holes, new_num_holes);
         assert_eq!(area, new_area);
-        assert_eq!(min_dist, new_min_dist);
-        assert_eq!(min_dist, new_min_dist);
-        assert_eq!(peg_hole_dist, new_peg_hole_dist);
+        // assert_eq!(min_dist, new_min_dist);
+        // assert_eq!(min_dist, new_min_dist);
+        // assert_eq!(peg_hole_dist, new_peg_hole_dist);
+    }
+    #[test]
+    fn test_hash_state_as_string_final_state() {
+        let state = SolitaireState {
+            value: [
+                [-1, -1, 0, 0, 0, -1, -1],
+                [-1, -1, 0, 0, 0, -1, -1],
+                [ 0,  0, 0, 0, 0,  0,  0],
+                [ 0,  0, 0, 1, 0,  0,  0],
+                [ 0,  0, 0, 0, 0,  0,  0],
+                [-1, -1, 0, 0, 0, -1, -1],
+                [-1, -1, 0, 0, 0, -1, -1],
+            ],
+        };
+
+        let env = Solitaire::from_state(state);
+        let result = Solitaire::hash_state_as_string(&env.state, &env.holes, &env.pegs);
+
+        // commented out on 29-11
+        // assert_eq!(String::from("3_4.650282_5.650282_1370.759762_1433784"), result);
+        assert_eq!(String::from("32_1565.69579_1000000"), result);
+
     }
 
     #[test]
@@ -971,7 +1020,9 @@ mod tests {
 
         let env = Solitaire::from_state(state);
         let result = Solitaire::hash_state_as_string(&env.state, &env.holes, &env.pegs);
-        assert_eq!(String::from("3_4.650282_5.650282_1370.759762_1433784"), result);
+        // commented out on 29-11
+        // assert_eq!(String::from("3_4.650282_5.650282_1370.759762_1433784"), result);
+        assert_eq!(String::from("3_4.650282_1433784"), result);
 
     }
 
@@ -994,15 +1045,18 @@ mod tests {
             };
             let env = Solitaire::from_state(state);
 
-            let (num_holes, area, min_dist, pegs_dist, hole_peg_dist, const_group_hash) = env.hash();
+            // commented out on 29-11
+            // let (num_holes, area, min_dist, pegs_dist, hole_peg_dist, const_group_hash) = env.hash();
+            let (num_holes, area, const_group_hash) = env.hash();
             for f in &arr {
                 let env = Solitaire::from_state(f(&state));
-                let (new_num_holes, new_area, new_min_dist, new_pegs_dist, new_hole_peg_dist, new_const_group_hash) = env.hash();
+                // let (new_num_holes, new_area, new_min_dist, new_pegs_dist, new_hole_peg_dist, new_const_group_hash) = env.hash();
+                let (new_num_holes, new_area, new_const_group_hash) = env.hash();
                 assert_eq!(num_holes, new_num_holes);
                 assert_eq!(area, new_area);
-                assert_eq!(min_dist, new_min_dist);
-                assert_eq!(pegs_dist, new_pegs_dist);
-                assert_eq!(hole_peg_dist, new_hole_peg_dist);
+                // assert_eq!(min_dist, new_min_dist);
+                // assert_eq!(pegs_dist, new_pegs_dist);
+                // assert_eq!(hole_peg_dist, new_hole_peg_dist);
                 assert_eq!(const_group_hash, new_const_group_hash);
             }
         }

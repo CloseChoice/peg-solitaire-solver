@@ -75,8 +75,11 @@ impl StateFunction {
                                      reward: f64, 
                                      iterations: &mut i128) {
         let reward_entry = match visited_hashes[visited_hashes.len() - 1].as_str() {
-            // todo: this does not work anymore!
-            "32_1565.69579_72.843619" => reward + 10.,
+            "3_4.650282_5.650282_1370.759762_1433784" => reward + 10.,
+            // commented out on 29-11
+            // "32_1565.69579_72.843619_0_72.843619_1000000" => reward + 10.,
+            // "this is the simple case"
+            // "32_1565.69579_72.843619" => reward + 10.,
             _ => reward,
         };
         assert_eq!(visited_hashes.len(), visited_states.len());
@@ -91,6 +94,9 @@ impl StateFunction {
     }
 
     pub fn iterate_game(&mut self, state: SolitaireState, mut visited_hashes: Vec<String>, mut visited_states: Vec<String>, reward: f64, iterations: &mut i128) {
+        if iterations >= &mut 100_000 {
+            return
+        };
         let env = Solitaire::from_state(state);
         // println!("START OF FUNCTION: This is env\n{}", Solitaire::from_state(state.clone()));
         // println!("START OF FUNCTION: These are hashes: {:?}", visited_hashes);

@@ -58,7 +58,7 @@ fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
 
     // Let's create a table for payments.
     conn.query_drop(
-        r"CREATE TABLE if not exists `peg_solitaire_values_test` (
+        r"CREATE TABLE if not exists `peg_solitaire_values` (
           `hash` varchar(100) NOT NULL,
           `value` int DEFAULT NULL,
           `holes` int NOT NULL,
@@ -85,27 +85,15 @@ fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
      let mut s = StateFunction::new();
      let state = SolitaireState {
           value: [
-              [-1, -1, 0, 0, 0, -1, -1],
-              [-1, -1, 0, 0, 0, -1, -1],
-              [ 0,  0, 0, 0, 0,  0,  0],
-              [ 0,  0, 0, 0, 1,  1,  0],
-              [ 0,  0, 0, 0, 0,  0,  0],
-              [-1, -1, 0, 0, 0, -1, -1],
-              [-1, -1, 0, 0, 0, -1, -1],
+              [-1, -1, 1, 1, 1, -1, -1],
+              [-1, -1, 1, 1, 1, -1, -1],
+              [ 1,  1, 1, 1, 1,  1,  1],
+              [ 1,  1, 1, 0, 1,  1,  1],
+              [ 1,  1, 1, 1, 1,  1,  1],
+              [-1, -1, 1, 1, 1, -1, -1],
+              [-1, -1, 1, 1, 1, -1, -1],
           ],
          };
-
-//     let state = SolitaireState {
-//          value: [
-//              [-1, -1, 1, 1, 1, -1, -1],
-//              [-1, -1, 1, 1, 1, -1, -1],
-//              [ 1,  1, 1, 1, 1,  1,  1],
-//              [ 1,  1, 1, 0, 1,  1,  1],
-//              [ 1,  1, 1, 1, 1,  1,  1],
-//              [-1, -1, 1, 1, 1, -1, -1],
-//              [-1, -1, 1, 1, 1, -1, -1],
-//          ],
-//         };
      s.iterate_game(state, vec![], vec![], 0., &mut 0);
     
 //     let s = brute_force_solving(50_000_000);
@@ -115,31 +103,31 @@ fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
  
      // let state = env.hash_as_str();
      println!("length of s {}", s.qs.len());
-//     println!("This is the value of the start state {:?} and it's appearance {}", s.get_state_value(&state), s.get_state_counter(&state));
-     let b = s.qs.into_iter().map(|(k, v)| {
-                                             let split = k.split("_").collect::<Vec<&str>>();
-                                             let holes = split[0].parse::<i32>().unwrap();
-                                               PegSolitaireValues {
-                                               holes: holes.into(),
-                                               hash: k,
-                                               value: v.1,
-                                               position: v.2
-                                             }
-                                           }
-                                  ).collect::<Vec<PegSolitaireValues>>();
 
-     // let b: HashMap<String, (f64, String)> = s.qs.into_iter().map(|(k, v)| (k, (v.1, v.2))).collect();
-    conn.exec_batch(
-        r"INSERT INTO peg_solitaire_values_test(hash, holes, value, position)
+     conn.exec_batch(
+        r"INSERT INTO peg_solitaire_values(hash, holes, value, position)
           VALUES (:hash, :holes, :value, :position)",
-        b.iter().map(|p| params! {
-            "holes" => &p.holes,
-            "hash" => &p.hash,
-            "position" => &p.position,
-            "value" => &p.value,
-        })
-    )?;
+          s.qs.iter().map(|(k, v)| {
+                                    let split = k.split("_").collect::<Vec<&str>>();
+                                    let holes = split[0].parse::<i32>().unwrap();
+                                    let row = PegSolitaireValues {
+                                         holes: holes,
+                                         hash: k.clone(),
+                                         value: v.1,
+                                         position: v.2.clone()
+                                    };
+                                    params! {
+                                         "holes" => &row.holes,
+                                         "hash" => &row.hash,
+                                         "position" => &row.position,
+                                         "value" => &row.value,
+                                    }
+                                   }
+                                  )
+     )?;
 // 
+     // alternatively write to json.
+     // let b: HashMap<String, (f64, String)> = s.qs.into_iter().map(|(k, v)| (k, (v.1, v.2))).collect();
 //     let serialized_json = serde_json::to_string(&b).unwrap();
 //     let path_json: &Path = Path::new("serialized_deep_search_hole_peg_dist.json");
 //     // let path_json: &Path = Path::new("serialized_with_new_hash.json");
